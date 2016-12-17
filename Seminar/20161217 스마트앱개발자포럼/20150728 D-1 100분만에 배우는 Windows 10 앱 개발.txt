@@ -1,0 +1,441 @@
+1. SplitView의 추가
+
+<SplitView x:Name="MySplitView" DisplayMode="CompactOverlay"  IsPaneOpen="False">
+            <SplitView.Pane>
+                <StackPanel Background="Gray">
+                    <Button x:Name="HamburgerButton" FontFamily="Segoe MDL2 Assets" Content="&#xE700;"
+                     Width="50" Height="50" Background="Transparent"/>
+                    <StackPanel Orientation="Horizontal">
+                        <Button x:Name="btnHome" FontFamily="Segoe MDL2 Assets" Content="&#xE825;"
+                     Width="50" Height="50" Background="Transparent"/>
+                        <TextBlock Text="Home" FontSize="18" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <Button x:Name="btnStoredBook" FontFamily="Segoe MDL2 Assets" Content="&#xE10F;"
+                         Width="50" Height="50" Background="Transparent"/>
+                        <TextBlock Text="Book List" FontSize="18" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <Button x:Name="MenuButton3" FontFamily="Segoe MDL2 Assets" Content="&#xE1D6;"
+                         Width="50" Height="50" Background="Transparent"/>
+                        <TextBlock Text="Button 3" FontSize="18" VerticalAlignment="Center" />
+                    </StackPanel>
+                </StackPanel>
+            </SplitView.Pane>
+            <SplitView.Content>
+            </SplitView.Content>
+        </SplitView>
+
+2. Content의 추가
+                <StackPanel Orientation="Vertical">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBox x:Name="txtKeyword" Width="128"/>
+                        <Button x:Name="txtSearch" Content="Search"/>
+                        <Button x:Name="txtStoredBooks" Content="저장된 책 보기"/>
+                    </StackPanel>
+                    <ListBox x:Name="lstBooks" Height="700">
+                        <StackPanel Orientation="Horizontal"  Height="300">
+                            <Image x:Name="image" Source="http://t1.daumcdn.net/thumb/R155x225/?fname=http%3A%2F%2Ft1.daumcdn.net%2Fbook%2FKOR9788952756107%3Fmoddttm=20150728062824"/>
+                            <StackPanel Orientation="Vertical">
+                                <TextBlock FontSize="20" Text="책제목" FontWeight="Bold" HorizontalAlignment="Left"/>
+                                <TextBlock x:Name="textBlock" FontSize="15" Text=" 1969년 12월 24일에 스코틀랜드 코트브리지에서 출생하였다. 현재는 스코틀랜드의 글래스고우에 거주하고 있으며 그의 작품은 최근 10년 동안 미국에서 활동한 영국 출신 작가의 작품 중 가장 많이 팔렸다. 대표작으로 [The Authority], [Ultimates 1 and 2], [Wanted], [Marvel Knights Spider-Man], [Ultimate Fantastic Four] 그리고 [Civil War]가 있다. 2007년 8월 스탠리 상을 받았다. 2008년 그의 원작을 바탕으로 한 영화 [Wanted] 가 개봉되었다." TextWrapping="Wrap" Width="300"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </ListBox>
+                </StackPanel>
+
+
+3. HamburgerButton 이벤트 핸들러 추가 
+
+        private void HamburgerButton_Click(object sender, RoutedEventArgs e)
+        {
+            MySplitView.IsPaneOpen = !MySplitView.IsPaneOpen;
+        }
+
+3. App Bar의 추가 
+    <Page.BottomAppBar>
+        <AppBar IsOpen="False" Name="appbarMain">
+            <AppBarButton Icon="Add"/>
+        </AppBar>
+    </Page.BottomAppBar>
+
+
+4. Daum API 정보의 설정
+
+        private string BOOK_SEARCH_URL = "https://apis.daum.net/search/book?apikey={0}&q={1}&output={2}";
+        private string API_KEY = "d43ad4633861b48251d391021f3f5509";//"0a927a3a0cdc03c7094547b8d50f7486";
+        private string OUTPUT = "xml";
+
+5. Name Space 의 추가 
+
+using System.Net.Http;
+using System.Xml.Linq;
+
+6. Networkging
+
+            string temp = string.Format(BOOK_SEARCH_URL, API_KEY, txtKeyword.Text, OUTPUT);
+
+            System.Net.Http.HttpClient client = new System.Net.Http.HttpClient();
+
+            HttpResponseMessage response = await client.GetAsync(temp);
+            response.EnsureSuccessStatusCode();
+
+            string responseBody = await response.Content.ReadAsStringAsync();
+
+            XDocument xDoc = XDocument.Parse(responseBody);
+
+7.Entity Class
+
+    class BookItem
+    {
+        public Int64 Id { get; set; }
+        public string Title { get; set; }
+        public string Category { get; set; }
+        public string ImageUrl { get; set; }
+        public string Description { get; set; }
+    }
+
+8. Linq
+
+
+            var books = from BookItem in xDoc.Descendants("item")
+                        select new BookItem
+                        {
+                            Title = (string)BookItem.Element("title"),
+                            Category = (string)BookItem.Element("category"),
+                            ImageUrl = (string)BookItem.Element("cover_l_url"),
+                            Description = (string)BookItem.Element("description")
+                        };
+
+            var booklist = books.ToList();
+            lstBooks.ItemsSource = booklist;
+
+9. Adaptive UI
+
+            this.SizeChanged += (s, e) =>
+            {
+                var state = "VisualState000";
+                if (e.NewSize.Width > 800)
+                    state = "VisualState800";
+
+                VisualStateManager.GoToState(this, state, true);
+            };
+
+10. Binding
+
+                    <ListBox x:Name="lstBooks" Height="700">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                        <StackPanel Orientation="Horizontal"  Height="300">
+                            <Image x:Name="image" Source="{Binding ImageUrl}"/>
+                            <StackPanel Orientation="Vertical">
+                                <TextBlock FontSize="20" Text="{Binding Title}" FontWeight="Bold" HorizontalAlignment="Left"/>
+                                <TextBlock x:Name="textBlock" FontSize="15" Text="{Binding Description}" TextWrapping="Wrap" Width="300"/>
+                            </StackPanel>
+                        </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+
+11.StoredBook.xaml
+
+
+    <Page.BottomAppBar>
+            <AppBar IsOpen="True" Name="appbarMain">
+                <StackPanel Orientation="Horizontal">
+                    <AppBarButton Icon="BackToWindow"/>
+                    <AppBarButton Icon="Delete"/>
+                </StackPanel>
+            </AppBar>
+        </Page.BottomAppBar>
+        <Grid Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+            <StackPanel Orientation="Vertical">
+                <ListBox Name="lstBooks" Height="700">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal" Width="500" Height="300">
+                                <Image Source="{Binding ImageUrl}"/>
+                                <StackPanel Orientation="Vertical">
+                                    <TextBlock FontSize="20" Text="{Binding Title}" FontWeight="Bold" HorizontalAlignment="Left"/>
+                                    <TextBlock FontSize="15" Text="{Binding Description}" TextWrapping="Wrap" Width="300"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </StackPanel>
+        </Grid>
+
+
+12. SQLitePCL 추가
+
+13. SQLIte Namespace 추가
+
+using SQLitePCL;
+
+14. App Member 변수 추가 
+
+public static SQLiteConnection SQLCon;
+
+15. 데이터베이스 연결 
+
+            this.InitializeComponent();
+            this.Suspending += OnSuspending;
+
+            SQLCon = new SQLiteConnection("Master.db");
+
+            string sql = @"CREATE TABLE IF NOT EXISTS
+                            Books(Id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                                    Title VARCHAR(140),
+                                    Category VARCHAR(100),                                    
+                                    ImageUrl VARCHAR(400),
+                                    Description VARCHAR(500)
+                            );";
+
+            var statement = SQLCon.Prepare(sql);
+            statement.Step();
+
+실행시 오류 발생하면 
+SQLite for Universal App Platform를 참조에서 추가한다.
+SQLite UWP Native
+
+16. Main Page SQLite Namespace 추가
+
+using SQLitePCL;
+
+17. 생성자에 Database 객체 가져오기
+
+private SQLiteConnection Db = App.SQLCon;
+
+18. 이벤트 핸들러에 코드 추가. 
+
+            if (lstBooks.SelectedItem == null)
+                return;
+
+            var bookItem = (BookItem)lstBooks.SelectedItem;
+
+            try
+            {
+                using (var book = Db.Prepare("INSERT INTO Books(Title, Category, ImageUrl, Description) VALUES(?,?,?,?)"))
+                {
+                    book.Bind(1, bookItem.Title);
+                    book.Bind(2, bookItem.Category);
+                    book.Bind(3, bookItem.ImageUrl);
+                    book.Bind(4, bookItem.Description);
+                    book.Step();
+                }
+            }
+            catch (Exception ex)
+            {
+            }
+
+19.조회 부분 작성 
+
+        private void txtStoredBooks_Click(object sender, RoutedEventArgs e)
+        {
+            Frame.Navigate(typeof(StoredBook), null);
+        }
+
+19-1.조회 부분 페이지 추가
+
+    <Page.BottomAppBar>
+        <AppBar IsOpen="True" Name="appbarMain">
+            <StackPanel Orientation="Horizontal">
+                <AppBarButton Icon="BackToWindow"/>
+                <AppBarButton Icon="Delete"/>
+            </StackPanel>
+        </AppBar>
+    </Page.BottomAppBar>
+    <Grid Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+        <StackPanel Orientation="Vertical">
+            <ListBox Name="lstBooks" Height="700">
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <StackPanel Orientation="Horizontal" Width="500" Height="300">
+                            <Image Source="{Binding ImageUrl}"/>
+                            <StackPanel Orientation="Vertical">
+                                <TextBlock FontSize="20" Text="{Binding Title}" FontWeight="Bold" HorizontalAlignment="Left"/>
+                                <TextBlock FontSize="15" Text="{Binding Description}" TextWrapping="Wrap" Width="300"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </StackPanel>
+    </Grid>
+
+20. StoredBook.xaml 작업
+
+using SQLitePCL;
+
+private SQLiteConnection Db = App.SQLCon;
+
+21. 조회하는 코드 
+
+        private void DataLoading()
+        {
+            using (var statement = Db.Prepare("SELECT Id, Title, Category, ImageUrl, Description FROM Books"))
+            {
+                List<BookItem> books = new List<BookItem>();
+
+                while (statement.Step() == SQLiteResult.ROW)
+                {
+                    BookItem book = new BookItem();
+                    book.Id = (Int64)statement[0];
+                    book.Title = (string)statement[1];
+                    book.Category = (string)statement[2];
+                    book.ImageUrl = (string)statement[3];
+                    book.Description = (string)statement[4];
+
+                    books.Add(book);
+                }
+
+                lstBooks.ItemsSource = books;
+                
+                if(lstBooks.Items.Count != 0)
+                {
+                    lstBooks.SelectedIndex = 0;
+                }
+            }
+        }
+
+Back Button
+
+            this.Frame.GoBack();
+
+Delete Button
+
+            if (lstBooks.SelectedItem == null)
+                return;
+
+            var bookItem = (BookItem)lstBooks.SelectedItem;
+            Int64 id = bookItem.Id;
+
+            var statement = Db.Prepare("DELETE FROM books WHERE Id=?");
+            statement.Bind(1, id);
+
+            statement.Step();
+
+            DataLoading();
+
+Notification
+
+            var notificationXml = ToastNotificationManager.GetTemplateContent(ToastTemplateType.ToastText01);
+            var toeastElement = notificationXml.GetElementsByTagName("text");
+            toeastElement[0].AppendChild(notificationXml.CreateTextNode(bookItem.Title + "이(가) 삭제 되었습니다."));
+            var toastNotification = new ToastNotification(notificationXml);
+            ToastNotificationManager.CreateToastNotifier().Show(toastNotification);
+
+
+삭제 
+
+            if (lstBooks.SelectedItem == null)
+                return;
+
+            var bookItem = (BookItem)lstBooks.SelectedItem;
+            Int64 id = bookItem.Id;
+
+            var statement = Db.Prepare("DELETE FROM books WHERE Id=?");
+            statement.Bind(1, id);
+
+            statement.Step();
+
+            DataLoading();
+
+
+
+
+22. Notification
+
+using Windows.UI.Notifications;
+
+
+                    var notificationXml = ToastNotificationManager.GetTemplateContent(ToastTemplateType.ToastText01);
+                    var toeastElement = notificationXml.GetElementsByTagName("text");
+                    toeastElement[0].AppendChild(notificationXml.CreateTextNode(bookItem.Title + "이(가) 추가 되었습니다."));
+                    var toastNotification = new ToastNotification(notificationXml);
+                    ToastNotificationManager.CreateToastNotifier().Show(toastNotification);
+
+
+
+        <VisualStateManager.VisualStateGroups>
+            <!-- Within this view, the splitview is being optimized for window size using responsive techniques -->
+            <VisualStateGroup>
+                <VisualState>
+                    <VisualState.StateTriggers>
+                        <AdaptiveTrigger MinWindowWidth="720" />
+                    </VisualState.StateTriggers>
+                    <VisualState.Setters>
+                        <Setter Target="MySplitView.DisplayMode" Value="Inline" />
+                        <Setter Target="MySplitView.IsPaneOpen" Value="True" />
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+        </VisualStateManager.VisualStateGroups>
+
+
+            <StackPanel Background="Gray">
+                <Button x:Name="HamburgerButton" FontFamily="Segoe MDL2 Assets" Content="&#xE700;"
+                     Width="50" Height="50" Background="Transparent" Click="HamburgerButton_Click"/>
+                <StackPanel Orientation="Horizontal">
+                    <Button x:Name="btnHome" FontFamily="Segoe MDL2 Assets" Content="&#xE825;"
+                     Width="50" Height="50" Background="Transparent"/>
+                    <TextBlock Text="Home" FontSize="18" VerticalAlignment="Center" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal">
+                    <Button x:Name="btnStoredBook" FontFamily="Segoe MDL2 Assets" Content="&#xE10F;"
+                         Width="50" Height="50" Background="Transparent"/>
+                    <TextBlock Text="Book List" FontSize="18" VerticalAlignment="Center" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal">
+                    <Button x:Name="MenuButton3" FontFamily="Segoe MDL2 Assets" Content="&#xE1D6;"
+                         Width="50" Height="50" Background="Transparent"/>
+                    <TextBlock Text="Button 3" FontSize="18" VerticalAlignment="Center" />
+                </StackPanel>
+            </StackPanel>
+        </SplitView.Pane>
+        <SplitView.Content>
+              <StackPanel Orientation="Vertical">
+                <StackPanel Orientation="Horizontal">
+                    <TextBox x:Name="txtKeyword" Width="128"/>
+                    <Button x:Name="txtSearch" Content="Search"/>
+                    <Button x:Name="txtStoredBooks" Content="저장된 책 보기" Click="txtStoredBooks_Click"/>
+                </StackPanel>
+                <ListView Name="lstBooks" ItemsSource="{Binding}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                    <ListView.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapGrid Orientation="Horizontal" ItemHeight="200" ItemWidth="400"/>
+                        </ItemsPanelTemplate>
+                    </ListView.ItemsPanel>
+                    <ListView.ItemContainerStyle>
+                        <Style TargetType="ListViewItem">
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                        </Style>
+                    </ListView.ItemContainerStyle>
+                    <ListView.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal"  Height="300">
+                                <Image x:Name="image" Source="{Binding ImageUrl}"/>
+                                <StackPanel Orientation="Vertical">
+                                    <TextBlock FontSize="20" Text="{Binding Title}" FontWeight="Bold" HorizontalAlignment="Left"/>
+                                    <TextBlock x:Name="textBlock" FontSize="15" Text="{Binding Description}" TextWrapping="Wrap" Width="300"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+            </StackPanel>
+
+
+            var api = "Windows.Phone.UI.Input.HardwareButtons";
+            if (Windows.Foundation.Metadata.ApiInformation.IsTypePresent(api))
+            {
+                Windows.Phone.UI.Input.HardwareButtons.CameraPressed += HardwareButtons_CameraPressed;
+            }
+
+
+        private void HardwareButtons_CameraPressed(object sender, Windows.Phone.UI.Input.CameraEventArgs e)
+        {
+            this.Frame.GoBack();
+        }
+
